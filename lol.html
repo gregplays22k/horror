@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Escape Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: black; }
+        canvas { display: block; }
+        #message {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 20px;
+            font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="message">Find the key and escape!</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Initialize Three.js
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const light = new THREE.PointLight(0xffffff, 1, 100);
+        light.position.set(0, 10, 0);
+        scene.add(light);
+
+        // Floor
+        const floorGeometry = new THREE.PlaneGeometry(50, 50);
+        const floorMaterial = new THREE.MeshLambertMaterial({ color: 0x555555 });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        // Walls
+        const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
+        const createWall = (x, z, rotation) => {
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(50, 10, 1), wallMaterial);
+            wall.position.set(x, 5, z);
+            wall.rotation.y = rotation;
+            scene.add(wall);
+        };
+        createWall(0, -25, 0);
+        createWall(0, 25, 0);
+        createWall(-25, 0, Math.PI / 2);
+        createWall(25, 0, Math.PI / 2);
+
+        // Escape Door
+        const doorGeometry = new THREE.BoxGeometry(5, 8, 1);
+        const doorMaterial = new THREE.MeshLambertMaterial({ color: 0x0000ff });
+        const door = new THREE.Mesh(doorGeometry, doorMaterial);
+        door.position.set(20, 4, -20);
+        scene.add(door);
+
+        // Key Object
+        const keyGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const keyMaterial = new THREE.MeshLambertMaterial({ color: 0xffff00 });
+        const key = new THREE.Mesh(keyGeometry, keyMaterial);
+        key.position.set(-15, 1, -10);
+        scene.add(key);
+
+        // Player Controls
+        const controls = { forward: false, backward: false, left: false, right: false };
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "w") controls.forward = true;
+            if (event.key === "s") controls.backward = true;
+            if (event.key === "a") controls.left = true;
+            if (event.key === "d") controls.right = true;
+        });
+        document.addEventListener("keyup", (event) => {
+            if (event.key === "w") controls.forward = false;
+            if (event.key === "s") controls.backward = false;
+            if (event.key === "a") controls.left = false;
+            if (event.key === "d") controls.right = false;
+        });
+
+        // Mouse Look
+        document.body.requestPointerLock =
+            document.body.requestPointerLock || document.body.mozRequestPointerLock;
+        document.body.onclick = () => document.body.requestPointerLock();
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener("mousemove", (event) => {
+            mouseX -= event.movementX * 0.002;
+            mouseY -= event.movementY * 0.002;
+            mouseY = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, mouseY));
+            camera.rotation.x = mouseY;
+            camera.rotation.y = mouseX;
+        });
+
+        // Player State
+        let hasKey = false;
+
+        // Check Collisions
+        function checkCollisions() {
+            if (camera.position.distanceTo(key.position) < 2) {
+                hasKey = true;
+                scene.remove(key);
+                document.getElementById("message").innerText = "You got the key! Find the exit!";
+            }
+            if (camera.position.distanceTo(door.position) < 3 && hasKey) {
+                document.getElementById("message").innerText = "You escaped! Game Over.";
+                setTimeout(() => window.location.reload(), 2000);
+            }
+        }
+
+        // Game Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            const speed = 0.1;
+            const direction = new THREE.Vector3();
+
+            if (controls.forward) direction.z -= speed;
+            if (controls.backward) direction.z += speed;
+            if (controls.left) direction.x -= speed;
+            if (controls.right) direction.x += speed;
+
+            direction.applyQuaternion(camera.quaternion);
+            camera.position.add(direction);
+
+            checkCollisions();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
